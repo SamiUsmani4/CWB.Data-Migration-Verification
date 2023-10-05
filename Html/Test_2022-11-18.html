@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>Test_2022-11-18.html</h1>
+    <p>Report generated on 18-Nov-2022 at 12:43:59 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "0.13.1", "py": "1.10.0", "pytest": "6.2.5"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.19041-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"html": "3.1.1", "metadata": "1.11.0"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.7.3</td></tr></table>
+    <h2>Summary</h2>
+    <p>1 tests ran in 397.83 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">0 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">1 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="failed results-table-row">
+        <tr>
+          <td class="col-result">Failed</td>
+          <td class="col-name">tests/home/DMProject.py::Sandbox::testing11</td>
+          <td class="col-duration">383.21</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log">self = &lt;tests.home.DMProject.Sandbox testMethod=testing11&gt;<br/><br/>    def testing11(self):<br/>        filePath = f&quot;G:\\QA\\Automation Team\\Data Migration R-1.2\\DM_Data.csv&quot;<br/>        df = pd.read_csv(filePath, encoding=&#x27;utf-8&#x27;)<br/>        for n in range(len(df)):<br/>            if df[&#x27;Tested&#x27;][n] != &#x27;Y&#x27;:<br/>                currTime = datetime.now()<br/>                print(f&#x27;\n&#x27;, df[&#x27;PAN&#x27;][n], &#x27;Started at:  &#x27;, currTime)<br/>                accountType = str(df[&#x27;AccountType&#x27;][n])<br/>                panNumber = str(df[&#x27;PAN&#x27;][n])<br/>                loginID = str(df[&#x27;PAN&#x27;][n])[-8:]<br/>                passWrd = str(df[&#x27;Password&#x27;][n])<br/>                cifPersonal = str(df[&#x27;PCIF&#x27;][n])<br/>                cifBusiness = str(df[&#x27;BCIF&#x27;][n])<br/>&gt;               self.md.executeTest(panNumber, loginID, passWrd, cifPersonal, cifBusiness, accountType)<br/><br/>tests\home\DMProject.py:29: <br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/>tests\home\DataMigration2.py:539: in executeTest<br/>    T24Data = self.T24DataRetail(panNumber)<br/>tests\home\DataMigration2.py:502: in T24DataRetail<br/>    accountDet = self.accountsDetails(typ=&#x27;r&#x27;)<br/>tests\home\DataMigration2.py:244: in accountsDetails<br/>    cadAccounts = self.persAccounts(namTab)<br/>tests\home\DataMigration2.py:285: in persAccounts<br/>    txt = info.text.rstrip()<br/>C:\Users\usmanis\AppData\Roaming\Python\Python37\site-packages\selenium\webdriver\remote\webelement.py:76: in text<br/>    return self._execute(Command.GET_ELEMENT_TEXT)[&#x27;value&#x27;]<br/>C:\Users\usmanis\AppData\Roaming\Python\Python37\site-packages\selenium\webdriver\remote\webelement.py:633: in _execute<br/>    return self._parent.execute(command, params)<br/>C:\Users\usmanis\AppData\Roaming\Python\Python37\site-packages\selenium\webdriver\remote\webdriver.py:321: in execute<br/>    self.error_handler.check_response(response)<br/>_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ <br/><br/>self = &lt;selenium.webdriver.remote.errorhandler.ErrorHandler object at 0x000002172FCF9080&gt;<br/>response = {&#x27;status&#x27;: 404, &#x27;value&#x27;: &#x27;{&quot;value&quot;:{&quot;error&quot;:&quot;stale element reference&quot;,&quot;message&quot;:&quot;stale element reference: element is n...\n\\tRtlGetAppContainerNamedObjectPath [0x76ED7BBE+286]\\n\\tRtlGetAppContainerNamedObjectPath [0x76ED7B8E+238]\\n&quot;}}&#x27;}<br/><br/>    def check_response(self, response):<br/>        &quot;&quot;&quot;<br/>        Checks that a JSON response from the WebDriver does not have an error.<br/>    <br/>        :Args:<br/>         - response - The JSON response from the WebDriver server as a dictionary<br/>           object.<br/>    <br/>        :Raises: If the response contains an error message.<br/>        &quot;&quot;&quot;<br/>        status = response.get(&#x27;status&#x27;, None)<br/>        if status is None or status == ErrorCode.SUCCESS:<br/>            return<br/>        value = None<br/>        message = response.get(&quot;message&quot;, &quot;&quot;)<br/>        screen = response.get(&quot;screen&quot;, &quot;&quot;)<br/>        stacktrace = None<br/>        if isinstance(status, int):<br/>            value_json = response.get(&#x27;value&#x27;, None)<br/>            if value_json and isinstance(value_json, basestring):<br/>                import json<br/>                try:<br/>                    value = json.loads(value_json)<br/>                    if len(value.keys()) == 1:<br/>                        value = value[&#x27;value&#x27;]<br/>                    status = value.get(&#x27;error&#x27;, None)<br/>                    if status is None:<br/>                        status = value[&quot;status&quot;]<br/>                        message = value[&quot;value&quot;]<br/>                        if not isinstance(message, basestring):<br/>                            value = message<br/>                            message = message.get(&#x27;message&#x27;)<br/>                    else:<br/>                        message = value.get(&#x27;message&#x27;, None)<br/>                except ValueError:<br/>                    pass<br/>    <br/>        exception_class = ErrorInResponseException<br/>        if status in ErrorCode.NO_SUCH_ELEMENT:<br/>            exception_class = NoSuchElementException<br/>        elif status in ErrorCode.NO_SUCH_FRAME:<br/>            exception_class = NoSuchFrameException<br/>        elif status in ErrorCode.NO_SUCH_WINDOW:<br/>            exception_class = NoSuchWindowException<br/>        elif status in ErrorCode.STALE_ELEMENT_REFERENCE:<br/>            exception_class = StaleElementReferenceException<br/>        elif status in ErrorCode.ELEMENT_NOT_VISIBLE:<br/>            exception_class = ElementNotVisibleException<br/>        elif status in ErrorCode.INVALID_ELEMENT_STATE:<br/>            exception_class = InvalidElementStateException<br/>        elif status in ErrorCode.INVALID_SELECTOR \<br/>                or status in ErrorCode.INVALID_XPATH_SELECTOR \<br/>                or status in ErrorCode.INVALID_XPATH_SELECTOR_RETURN_TYPER:<br/>            exception_class = InvalidSelectorException<br/>        elif status in ErrorCode.ELEMENT_IS_NOT_SELECTABLE:<br/>            exception_class = ElementNotSelectableException<br/>        elif status in ErrorCode.ELEMENT_NOT_INTERACTABLE:<br/>            exception_class = ElementNotInteractableException<br/>        elif status in ErrorCode.INVALID_COOKIE_DOMAIN:<br/>            exception_class = InvalidCookieDomainException<br/>        elif status in ErrorCode.UNABLE_TO_SET_COOKIE:<br/>            exception_class = UnableToSetCookieException<br/>        elif status in ErrorCode.TIMEOUT:<br/>            exception_class = TimeoutException<br/>        elif status in ErrorCode.SCRIPT_TIMEOUT:<br/>            exception_class = TimeoutException<br/>        elif status in ErrorCode.UNKNOWN_ERROR:<br/>            exception_class = WebDriverException<br/>        elif status in ErrorCode.UNEXPECTED_ALERT_OPEN:<br/>            exception_class = UnexpectedAlertPresentException<br/>        elif status in ErrorCode.NO_ALERT_OPEN:<br/>            exception_class = NoAlertPresentException<br/>        elif status in ErrorCode.IME_NOT_AVAILABLE:<br/>            exception_class = ImeNotAvailableException<br/>        elif status in ErrorCode.IME_ENGINE_ACTIVATION_FAILED:<br/>            exception_class = ImeActivationFailedException<br/>        elif status in ErrorCode.MOVE_TARGET_OUT_OF_BOUNDS:<br/>            exception_class = MoveTargetOutOfBoundsException<br/>        elif status in ErrorCode.JAVASCRIPT_ERROR:<br/>            exception_class = JavascriptException<br/>        elif status in ErrorCode.SESSION_NOT_CREATED:<br/>            exception_class = SessionNotCreatedException<br/>        elif status in ErrorCode.INVALID_ARGUMENT:<br/>            exception_class = InvalidArgumentException<br/>        elif status in ErrorCode.NO_SUCH_COOKIE:<br/>            exception_class = NoSuchCookieException<br/>        elif status in ErrorCode.UNABLE_TO_CAPTURE_SCREEN:<br/>            exception_class = ScreenshotException<br/>        elif status in ErrorCode.ELEMENT_CLICK_INTERCEPTED:<br/>            exception_class = ElementClickInterceptedException<br/>        elif status in ErrorCode.INSECURE_CERTIFICATE:<br/>            exception_class = InsecureCertificateException<br/>        elif status in ErrorCode.INVALID_COORDINATES:<br/>            exception_class = InvalidCoordinatesException<br/>        elif status in ErrorCode.INVALID_SESSION_ID:<br/>            exception_class = InvalidSessionIdException<br/>        elif status in ErrorCode.UNKNOWN_METHOD:<br/>            exception_class = UnknownMethodException<br/>        else:<br/>            exception_class = WebDriverException<br/>        if value == &#x27;&#x27; or value is None:<br/>            value = response[&#x27;value&#x27;]<br/>        if isinstance(value, basestring):<br/>            if exception_class == ErrorInResponseException:<br/>                raise exception_class(response, value)<br/>            raise exception_class(value)<br/>        if message == &quot;&quot; and &#x27;message&#x27; in value:<br/>            message = value[&#x27;message&#x27;]<br/>    <br/>        screen = None<br/>        if &#x27;screen&#x27; in value:<br/>            screen = value[&#x27;screen&#x27;]<br/>    <br/>        stacktrace = None<br/>        if &#x27;stackTrace&#x27; in value and value[&#x27;stackTrace&#x27;]:<br/>            stacktrace = []<br/>            try:<br/>                for frame in value[&#x27;stackTrace&#x27;]:<br/>                    line = self._value_or_default(frame, &#x27;lineNumber&#x27;, &#x27;&#x27;)<br/>                    file = self._value_or_default(frame, &#x27;fileName&#x27;, &#x27;&lt;anonymous&gt;&#x27;)<br/>                    if line:<br/>                        file = &quot;%s:%s&quot; % (file, line)<br/>                    meth = self._value_or_default(frame, &#x27;methodName&#x27;, &#x27;&lt;anonymous&gt;&#x27;)<br/>                    if &#x27;className&#x27; in frame:<br/>                        meth = &quot;%s.%s&quot; % (frame[&#x27;className&#x27;], meth)<br/>                    msg = &quot;    at %s (%s)&quot;<br/>                    msg = msg % (meth, file)<br/>                    stacktrace.append(msg)<br/>            except TypeError:<br/>                pass<br/>        if exception_class == ErrorInResponseException:<br/>            raise exception_class(response, message)<br/>        elif exception_class == UnexpectedAlertPresentException:<br/>            alert_text = None<br/>            if &#x27;data&#x27; in value:<br/>                alert_text = value[&#x27;data&#x27;].get(&#x27;text&#x27;)<br/>            elif &#x27;alert&#x27; in value:<br/>                alert_text = value[&#x27;alert&#x27;].get(&#x27;text&#x27;)<br/>            raise exception_class(message, screen, stacktrace, alert_text)<br/>&gt;       raise exception_class(message, screen, stacktrace)<br/><span class="error">E       selenium.common.exceptions.StaleElementReferenceException: Message: stale element reference: element is not attached to the page document</span><br/><span class="error">E         (Session info: chrome=107.0.5304.88)</span><br/><br/>C:\Users\usmanis\AppData\Roaming\Python\Python37\site-packages\selenium\webdriver\remote\errorhandler.py:242: StaleElementReferenceException<br/> ------------------------------Captured stdout call------------------------------ <br/>
+ CWB.5858311011175273 Started at:   2022-11-18 12:37:44.342621
+No Need to Reset Password
+Screenshot saved to directory --&gt; :: G:\QA\Automation Team\Data Migration R-1.2\screenshots\T24_DMX Update 11175273_11182022_123801.png
+Started...CAD, 2022-11-18 12:38:23.313086
+Started...USD, 2022-11-18 12:38:33.426547
+Terms and Conditions already Agreed. Page not displayed.
+Contact Information already verified. Page not displayed.
+Security Question/Answer already setup. Page not displayed.
+Element at //div[@id=&#x27;frmBBAccountsLanding_accountList&#x27;] not appeared on the web page
+updating row 11175273
+Business CWB.5858311011175273 Completed
+
+ CWB.5858311011174854 Started at:   2022-11-18 12:39:44.796691
+No Need to Reset Password
+Screenshot saved to directory --&gt; :: G:\QA\Automation Team\Data Migration R-1.2\screenshots\T24_DMX Update 11174854_11182022_124002.png
+Started...CAD, 2022-11-18 12:40:24.028784
+Started...USD, 2022-11-18 12:40:33.360586
+Terms and Conditions already Agreed. Page not displayed.
+Contact Information already verified. Page not displayed.
+Security Question/Answer already setup. Page not displayed.
+Element at //div[@id=&#x27;frmBBAccountsLanding_accountList&#x27;] not appeared on the web page
+updating row 11174854
+Business CWB.5858311011174854 Completed
+
+ CWB.5858311011174904 Started at:   2022-11-18 12:41:40.876157
+No Need to Reset Password
+Screenshot saved to directory --&gt; :: G:\QA\Automation Team\Data Migration R-1.2\screenshots\T24_DMX Update 11174904_11182022_124157.png
+Started...CAD, 2022-11-18 12:42:19.033608
+Started...USD, 2022-11-18 12:42:29.298230
+Terms and Conditions already Agreed. Page not displayed.
+Contact Information already verified. Page not displayed.
+Security Question/Answer already setup. Page not displayed.
+Element at //div[@id=&#x27;frmBBAccountsLanding_accountList&#x27;] not appeared on the web page
+updating row 11174904
+Business CWB.5858311011174904 Completed
+
+ FLS.5858311010283219 Started at:   2022-11-18 12:43:32.955076
+No Need to Reset Password
+Started...CAD, 2022-11-18 12:43:55.441682
+<br/> -------------------------------Captured log call-------------------------------- <br/>INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: signOnName locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: password locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: sign-in locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //a[text()=&#x27;Find&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //img[@title=&#x27;Customer Centric View&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: signOnName locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: password locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: sign-in locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //a[text()=&#x27;Find&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //img[@title=&#x27;Customer Centric View&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: signOnName locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: password locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: sign-in locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //a[text()=&#x27;Find&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //img[@title=&#x27;Customer Centric View&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: signOnName locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:174 Sent data on element with locator: password locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: sign-in locatorType: id
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //a[text()=&#x27;Find&#x27;] locatorType: xpath
+INFO     SeleniumDriver:seleniumDriver.py:212 Waiting for maximum :: 5 :: seconds for element to be located
+INFO     SeleniumDriver:seleniumDriver.py:163 Clicked on element with locator: //img[@title=&#x27;Customer Centric View&#x27;] locatorType: xpath<br/></div></td></tr></tbody></table></body></html>

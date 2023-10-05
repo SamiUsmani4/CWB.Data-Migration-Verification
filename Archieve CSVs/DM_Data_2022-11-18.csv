@@ -1,0 +1,7 @@
+﻿LoginID,AccountType,BCIF,PCIF,PAN,Password,Tested,Result,
+11175273,Business,816065,816063,CWB.5858311011175273,Cwb@1234,Y,VERIFY,"['Account Name Mismatched: 101014821121 > Inf: Fixed Rate Mortgage-Retail, T24: 1-5 Year Fixed Rate Closed Mortgage']"
+11174854,Business,815947,815945,CWB.5858311011174854,Cwb@1234,Y,VERIFY,"['Account Name Mismatched: 101014817768 > Inf: Fixed Rate Mortgage-Retail, T24: 1-5 Year Fixed Rate Closed Mortgage']"
+11174904,Business,815964,815962,CWB.5858311011174904,Cwb@1234,Y,VERIFY,"['Account Name Mismatched: 101014818128 > Inf: Fixed Rate Mortgage-Retail, T24: 1-5 Year Fixed Rate Closed Mortgage']"
+10283219,Retail,xxx,816165,FLS.5858311010283219,Cwb@1234,N,,
+10283201,Retail,xxx,816167,FLS.5858311010283201,Cwb@1234,N,,
+10288549,Retail,xxx,816172,FLS.5858311010288549,Cwb@1234,N,,
