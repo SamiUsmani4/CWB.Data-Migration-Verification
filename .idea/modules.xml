@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Data Migration.iml" filepath="$PROJECT_DIR$/.idea/Data Migration.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/CWB.Data-Migration-Verification.iml" filepath="$PROJECT_DIR$/.idea/CWB.Data-Migration-Verification.iml" />
     </modules>
   </component>
 </project>
